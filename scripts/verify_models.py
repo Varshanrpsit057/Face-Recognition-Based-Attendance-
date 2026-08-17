@@ -102,16 +102,31 @@ def sha256_of(path: Path, chunk: int = 1 << 20) -> str:
     return h.hexdigest()
 
 
-def concrete_shape(shape: Sequence[Any], batch: int = 1) -> Tuple[int, ...]:
-    """Turn an ONNX shape with symbolic dims into a concrete one."""
+def concrete_shape(
+    shape: Sequence[Any],
+    batch: int = 1,
+    spatial: Optional[Tuple[int, int]] = None,
+) -> Tuple[int, ...]:
+    """Turn an ONNX shape with symbolic dims into a concrete one.
+
+    Detector exports commonly declare NCHW as [1, 3, '?', '?'] because
+    they accept any input resolution. That is a capability, not a
+    defect, so symbolic spatial dims resolve to the resolution the
+    registry says the model is run at rather than failing the check.
+    """
     out: List[int] = []
     for i, d in enumerate(shape):
         if isinstance(d, int) and d > 0:
             out.append(d)
-        elif i == 0:
+            continue
+        if i == 0:
             out.append(batch)
+        elif len(shape) == 4 and i in (2, 3) and spatial is not None:
+            # ONNX NCHW orders spatial dims as (H, W); registry
+            # input_size is declared (W, H).
+            out.append(spatial[1] if i == 2 else spatial[0])
         else:
-            raise ValueError(f"cannot concretize non-batch symbolic dim at index {i}: {shape}")
+            raise ValueError(f"cannot concretize symbolic dim at index {i}: {shape}")
     return tuple(out)
 
 
@@ -205,7 +220,8 @@ def verify_model(key: str, models_dir: Path, runs: int = 12) -> ModelReport:
     # loads but cannot run is not ready.
     try:
         inp = sess.get_inputs()[0]
-        shape = concrete_shape(inp.shape)
+        shape = concrete_shape(inp.shape, spatial=info.input_size)
+        rep.notes.append(f"inference verified at input shape {list(shape)}")
         feed = {inp.name: np.random.rand(*shape).astype(np.float32)}
         sess.run(None, feed)          # warmup, excluded from timing
         rep.warmup_ok = True

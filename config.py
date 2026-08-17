@@ -224,14 +224,23 @@ class DetectionConfig:
     """Face detection parameters."""
 
     backend: DetectorBackend = DetectorBackend.SCRFD
-    # SCRFD checkpoint variant: "10g" (10 GFlops, has 5-point landmarks,
-    # faster) or "34g" (34 GFlops, no landmarks in this export, notably
-    # stronger recall on small/far faces). Defaults to "34g" because
-    # recovering far-row faces is the binding constraint for a single
-    # 8MP camera covering a full 30x40 ft classroom; switch to "10g" for
-    # smaller rooms/webcams where landmark-based alignment matters more
-    # than squeezing out extra small-face recall.
-    scrfd_variant: str = "34g"
+    # SCRFD checkpoint variant: "10g" (10 GFlops, 5-point landmark head)
+    # or "34g" (34 GFlops, no landmark head in this export).
+    #
+    # Defaults to "10g" on measured evidence, not on GFlops:
+    #   - 10g runs at 71 ms p50 vs 34g at 261 ms p50 on this CPU (3.7x),
+    #     and detection cost is multiplied by every tile in a tiled 8MP
+    #     frame, so the gap dominates end-to-end throughput.
+    #   - 10g emits 5-point landmarks; 34g does not. Landmarks drive the
+    #     affine alignment that produced the d'=4.56 / EER 0.00%
+    #     recognition separation measured by scripts/verify_models.py.
+    #     Without them every face falls back to a crude margin crop and
+    #     every embedding degrades — a silent, system-wide accuracy loss
+    #     that no amount of extra detection recall compensates for.
+    #
+    # 34g remains selectable for a detection-recall study, but pairing it
+    # with recognition requires adding a separate landmark model first.
+    scrfd_variant: str = "10g"
     confidence_threshold: float = 0.5
     nms_threshold: float = 0.4
     input_size: Tuple[int, int] = (640, 640)
@@ -346,7 +355,20 @@ class RecognitionConfig:
 
     backend: RecognizerBackend = RecognizerBackend.ADAFACE
     embedding_dim: int = 512
-    similarity_threshold: float = 0.45
+    # Measured on this dataset by scripts/verify_models.py (AdaFace
+    # IR-101, BGR input, 5-point aligned): the Equal Error Rate point
+    # sits at cosine 0.4812, with genuine pairs at 0.754 +/- 0.148 and
+    # impostor pairs at 0.167 +/- 0.106.
+    #
+    # CAVEAT, and it matters: that was 8 identities / 451 genuine /
+    # 1827 impostor pairs. EER 0.00% on a gallery that small does NOT
+    # generalize to 65 students — the impostor space grows roughly with
+    # the square of the roster, so the worst-case impostor score rises
+    # and a threshold tuned here will admit false accepts there.
+    # Re-run the sweep on the full roster before deployment and prefer
+    # the TAR@FAR operating point over EER, since rule 65 makes a false
+    # accept costlier than a missed mark.
+    similarity_threshold: float = 0.48
     recognition_threshold: float = 0.50
     batch_size: int = 8
     fallback_order: List[RecognizerBackend] = field(
@@ -506,6 +528,15 @@ class PreprocessingConfig:
     normalize: bool = True
     mean: Tuple[float, float, float] = (127.5, 127.5, 127.5)
     std: Tuple[float, float, float] = (127.5, 127.5, 127.5)
+    # Channel order fed to the recognizer. AdaFace's reference
+    # implementation reads frames with cv2 and does NOT swap channels,
+    # so it expects BGR; ArcFace/InsightFace exports expect RGB. The
+    # scaling is identical either way ((x-127.5)/127.5), so this single
+    # flag is the whole difference — and it is not cosmetic:
+    # scripts/verify_models.py measured BGR at d'=4.56 / EER 0.00% vs
+    # RGB at d'=4.35 / EER 0.22% on this dataset. Re-run that script
+    # after changing the recognizer checkpoint.
+    channel_order: str = "BGR"
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ class FacePreprocessor:
         self.gamma = getattr(self.config, 'gamma', 1.0)
         self.mean = np.array(getattr(self.config, 'mean', [0.5, 0.5, 0.5]), dtype=np.float32)
         self.std = np.array(getattr(self.config, 'std', [0.5, 0.5, 0.5]), dtype=np.float32)
+        self.channel_order = getattr(self.config, 'channel_order', 'BGR').upper()
 
     def align_face(self, image: np.ndarray, landmarks: np.ndarray) -> np.ndarray:
         tform, _ = cv2.estimateAffinePartial2D(landmarks, self.REFERENCE_LANDMARKS, method=cv2.LMEDS)
@@ -44,8 +45,11 @@ class FacePreprocessor:
         return cv2.resize(cropped, self.target_size)
 
     def normalize(self, image: np.ndarray) -> np.ndarray:
-        img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        img_float = img_rgb.astype(np.float32)
+        # Aligned crops arrive BGR (OpenCV native). Only convert when the
+        # configured recognizer actually wants RGB — AdaFace does not, and
+        # converting anyway measurably degrades its embeddings.
+        img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if self.channel_order == 'RGB' else image
+        img_float = img.astype(np.float32)
         mean = np.array(self.mean, dtype=np.float32)
         std = np.array(self.std, dtype=np.float32)
         if mean.max() <= 1.0:
