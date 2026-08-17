@@ -1,0 +1,65 @@
+# ─── Python ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ─── Virtual Environments ───────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─── IDE ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── OS ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Project: Large binary models ───────────────────────────────────
+models/*.onnx
+models/*.engine
+models/*.trt
+# ONNX external-weight sidecars (e.g. adaface_ir101.onnx.data, 260 MB).
+# These do NOT match "*.onnx" and would otherwise be committed and
+# rejected by GitHub's 100 MB per-file limit.
+models/*.data
+models/*.onnx_data
+models/*.pb
+
+# ─── Project: Biometric data (NEVER COMMIT) ─────────────────────────
+# Student face images and their derived embeddings are biometric data
+# belonging to identifiable people. Once pushed they persist in git
+# history, forks and GitHub's caches even after deletion, so they are
+# excluded at the source. Each deployment supplies its own dataset/.
+# Pattern is "dataset/*" not "dataset/" — git cannot re-include a file
+# whose parent directory is itself excluded, and the .gitkeep is what
+# preserves the folder structure on a fresh clone.
+dataset/*
+!dataset/.gitkeep
+
+# ─── Project: Generated outputs ─────────────────────────────────────
+outputs/
+attendance_logs/
+reports/
+# cache/ holds faiss_index.pkl — serialized face embeddings, i.e.
+# biometric data derived from dataset/. Excluded for the same reason.
+cache/
+
+# ─── Logs ────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Misc ────────────────────────────────────────────────────────────
+*.sqlite
+*.db

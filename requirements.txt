@@ -1,0 +1,47 @@
+# ─────────────────────────────────────────────────────────────────────
+# Facial Recognition Attendance System — Dependencies
+# CPU-first: all packages work without CUDA/GPU.
+# ─────────────────────────────────────────────────────────────────────
+
+# Core
+numpy>=1.24.0
+scipy>=1.10.0
+Pillow>=9.5.0
+pyyaml>=6.0
+
+# Computer Vision
+opencv-python>=4.8.0
+
+# ONNX Runtime (CPU — GPU packages are optional and auto-detected)
+onnxruntime>=1.16.0
+
+# Face Analysis
+insightface>=0.7.3
+
+# Machine Learning
+scikit-learn>=1.3.0
+joblib>=1.3.0
+
+# Vector Search
+faiss-cpu>=1.7.4
+
+# Tracking
+filterpy>=1.4.5
+lap>=0.4.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Data & Export
+pandas>=2.0.0
+openpyxl>=3.1.0
+xlsxwriter>=3.1.0
+
+# Web Framework
+streamlit>=1.28.0
+
+# Utilities
+tqdm>=4.65.0
+psutil>=5.9.0
+requests>=2.31.0
